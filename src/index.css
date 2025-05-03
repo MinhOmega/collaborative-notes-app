@@ -130,3 +130,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+.ProseMirror {
+  @apply min-h-[150px] p-4 outline-none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  @apply text-muted-foreground float-left h-0 pointer-events-none;
+}
+
+.tiptap-toolbar {
+  @apply flex flex-wrap gap-1 p-2 border-b items-center;
+}
+
+.tiptap-toolbar button {
+  @apply p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors;
+}
+
+.tiptap-toolbar button.is-active {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground;
+}
