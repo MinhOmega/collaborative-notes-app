@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import Peer from "peerjs";
 import { ActiveUser, Note, NoteStore, UserPresence } from "@/types/note";
 
+const LOCAL_STORAGE_NOTES_KEY = "hardcoded-notes";
+
 const generateCurrentUser = (): ActiveUser => {
   return {
     id: uuidv4(),
@@ -13,8 +15,74 @@ const generateCurrentUser = (): ActiveUser => {
 
 const currentUser = generateCurrentUser();
 
+const sampleNotes: Note[] = [
+  {
+    id: "sample-note-1",
+    title: "Welcome to Collaborative Notes",
+    content:
+      "This is a sample note to help you get started. You can edit this note but not share it with others.",
+    ownerId: "ME",
+    isPublic: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    collaborators: [],
+    version: 1,
+    lastEditBy: "ME",
+    isHardcoded: true,
+  },
+  {
+    id: "sample-note-2",
+    title: "How to Use This App",
+    content:
+      "1. Create a new note with the + button\n2. Edit your note in the editor\n3. Share notes with others (only for newly created notes)\n\nEnjoy collaborating!",
+    ownerId: "ME",
+    isPublic: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    collaborators: [],
+    version: 1,
+    lastEditBy: "ME",
+    isHardcoded: true,
+  },
+  {
+    id: "sample-note-3",
+    title: "Features Overview",
+    content:
+      "- Real-time collaboration\n- Peer-to-peer sharing\n- Local storage\n- Version control\n\nNote: This is a sample note and cannot be shared.",
+    ownerId: "ME",
+    isPublic: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    collaborators: [],
+    version: 1,
+    lastEditBy: "ME",
+    isHardcoded: true,
+  },
+];
+
+const loadInitialNotes = (): Note[] => {
+  try {
+    const storedNotes = localStorage.getItem(LOCAL_STORAGE_NOTES_KEY);
+    if (storedNotes) {
+      const parsedNotes = JSON.parse(storedNotes);
+      return parsedNotes.map((note: any) => ({
+        ...note,
+        createdAt: new Date(note.createdAt),
+        updatedAt: new Date(note.updatedAt),
+        isHardcoded: true,
+      }));
+    }
+
+    localStorage.setItem(LOCAL_STORAGE_NOTES_KEY, JSON.stringify(sampleNotes));
+    return sampleNotes;
+  } catch (error) {
+    console.error("Error loading notes from localStorage:", error);
+    return sampleNotes;
+  }
+};
+
 export const useNoteStore = create<NoteStore>((set, get) => ({
-  notes: [],
+  notes: loadInitialNotes(),
   activeNote: null,
   activeUsers: new Map(),
   currentUser,
@@ -122,6 +190,12 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
   },
 
   connectToPeer: (peerId, noteId) => {
+    // Skip connections for sample notes with ownerId "ME"
+    const note = get().notes.find((note) => note.id === noteId);
+    if (note && note.ownerId === "ME") {
+      return;
+    }
+
     const { peer, connections, currentUser } = get();
     if (!peer) {
       set({ error: "PeerJS not initialized. Try refreshing the page." });
@@ -198,6 +272,7 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
             collaborators: [get().currentUser.id],
             version: data.version,
             lastEditBy: data.userId,
+            isHardcoded: false,
           };
 
           set((state) => ({
@@ -210,10 +285,67 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
         // Handle user presence
         const presenceData = data as UserPresence;
 
+        // if (presenceData.action === "join") {
+        //   get().addActiveUser(presenceData.user, presenceData.noteId);
+        // } else {
+        //   get().removeActiveUser(presenceData.user.id);
+        // }
         if (presenceData.action === "join") {
           get().addActiveUser(presenceData.user, presenceData.noteId);
+          const userNote = get().notes.find((note) => note.id === presenceData.noteId);
+          if (userNote && userNote.ownerId === get().currentUser.id) {
+            const userId = presenceData.user.id;
+            if (!userNote.collaborators.includes(userId)) {
+              set((state) => ({
+                notes: state.notes.map((note) =>
+                  note.id === presenceData.noteId
+                    ? { ...note, collaborators: [...note.collaborators, userId] }
+                    : note,
+                ),
+                activeNote:
+                  state.activeNote?.id === presenceData.noteId
+                    ? {
+                        ...state.activeNote,
+                        collaborators: [...state.activeNote.collaborators, userId],
+                      }
+                    : state.activeNote,
+              }));
+            }
+          }
         } else {
           get().removeActiveUser(presenceData.user.id);
+        }
+        break;
+
+      case "request-sync":
+        const requestingUser = data.userId;
+        const requestedNoteId = data.noteId;
+
+        if (requestingUser) {
+          const notesToShare = get().notes.filter(
+            (note) =>
+              note.id === requestedNoteId &&
+              (note.ownerId === get().currentUser.id ||
+                note.collaborators.includes(requestingUser)),
+          );
+
+          const conn = get().connections.get(requestingUser);
+          if (conn && conn.open && notesToShare.length > 0) {
+            conn.send({
+              type: "initial-sync",
+              notes: notesToShare,
+            });
+          }
+        }
+        break;
+
+      case "note-delete":
+        const deletedNoteId = data.noteId;
+        if (deletedNoteId) {
+          set((state) => ({
+            notes: state.notes.filter((note) => note.id !== deletedNoteId),
+            activeNote: state.activeNote?.id === deletedNoteId ? null : state.activeNote,
+          }));
         }
         break;
 
@@ -325,6 +457,19 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
     });
   },
 
+  broadcastNoteDelete: (noteId: string) => {
+    const { connections } = get();
+    connections.forEach((conn) => {
+      if (conn.open) {
+        conn.send({
+          type: "note-delete",
+          noteId,
+          userId: get().currentUser.id,
+        });
+      }
+    });
+  },
+
   setActiveNote: (note) => {
     const prevNoteId = get().activeNote?.id;
     set({ activeNote: note });
@@ -349,8 +494,10 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
   },
 
   addNote: (title, content) => {
+    const noteId = uuidv4();
+
     const newNote: Note = {
-      id: uuidv4(),
+      id: noteId,
       title,
       content,
       ownerId: get().currentUser.id,
@@ -360,16 +507,36 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
       collaborators: [],
       version: 1,
       lastEditBy: get().currentUser.id,
+      isHardcoded: false,
     };
 
     set((state) => ({
       notes: [...state.notes, newNote],
     }));
+
+    return noteId;
   },
 
   updateNote: (id, updates) => {
     const note = get().notes.find((note) => note.id === id);
     if (!note) return;
+    if (note.isHardcoded) {
+      const updatedNote = {
+        ...note,
+        ...updates,
+        updatedAt: updates.updatedAt || new Date(),
+      };
+
+      set((state) => ({
+        notes: state.notes.map((note) => (note.id === id ? updatedNote : note)),
+        activeNote: state.activeNote?.id === id ? updatedNote : state.activeNote,
+      }));
+
+      // Save hardcoded notes to localStorage
+      const hardcodedNotes = get().notes.filter((n) => n.isHardcoded);
+      localStorage.setItem(LOCAL_STORAGE_NOTES_KEY, JSON.stringify(hardcodedNotes));
+      return;
+    }
 
     const updatedAt = new Date();
     const newVersion = note.version + 1;
@@ -408,13 +575,72 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
   },
 
   deleteNote: (id) => {
-    set((state) => ({
-      notes: state.notes.filter((note) => note.id !== id),
-      activeNote: state.activeNote?.id === id ? null : state.activeNote,
-    }));
+    const noteToDelete = get().notes.find((note) => note.id === id);
+    if (!noteToDelete) return;
+
+    if (noteToDelete.ownerId !== get().currentUser.id) {
+      set({ error: "You don't have permission to delete this note" });
+      return;
+    }
+
+    // First notify about deletion
+    get().broadcastNoteDelete(id);
+
+    // Close connections with collaborators specifically for this note
+    noteToDelete.collaborators.forEach((collaboratorId) => {
+      if (collaboratorId !== get().currentUser.id) {
+        const conn = get().connections.get(collaboratorId);
+        if (conn && conn.open) {
+          conn.send({
+            type: "note-delete",
+            noteId: id,
+            userId: get().currentUser.id,
+          });
+
+          // Don't close the connection immediately if there might be other shared notes
+          const otherSharedNotes = get().notes.filter(
+            (note) =>
+              (note.id !== id &&
+                note.ownerId === get().currentUser.id &&
+                note.collaborators.includes(collaboratorId)) ||
+              (note.ownerId === collaboratorId &&
+                note.collaborators.includes(get().currentUser.id)),
+          );
+
+          // If no other shared notes with this collaborator, close connection
+          if (otherSharedNotes.length === 0) {
+            console.log(
+              `Closing connection with ${collaboratorId} as there are no more shared notes`,
+            );
+            conn.close();
+            set((state) => {
+              const newConnections = new Map(state.connections);
+              newConnections.delete(collaboratorId);
+              return { connections: newConnections };
+            });
+          }
+        }
+      }
+    });
+
+    if (get().activeNote?.id === id) {
+      get().broadcastPresence("leave", id);
+      set({ activeNote: null });
+    }
+
+    set((state) => {
+      const filteredNotes = state.notes.filter((note) => note.id !== id);
+      // Don't save to localStorage for non-placeholder notes
+      return {
+        notes: filteredNotes,
+      };
+    });
   },
 
   shareNote: (noteId, userId) => {
+    const note = get().notes.find((note) => note.id === noteId);
+    if (!note) return;
+    if (note.isHardcoded) return;
     set((state) => ({
       notes: state.notes.map((note) =>
         note.id === noteId ? { ...note, collaborators: [...note.collaborators, userId] } : note,
@@ -457,10 +683,33 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
     get().updateNote(noteId, { content });
   },
 
+  // createNote: () => {
+  //   const title = "Untitled Note";
+  //   const content = "";
+  //   get().addNote(title, content);
+  // },
   createNote: () => {
     const title = "Untitled Note";
     const content = "";
-    get().addNote(title, content);
+    const noteId = get().addNote(title, content) || "";
+
+    // Update the new note with additional properties
+    if (noteId) {
+      set((state) => ({
+        notes: state.notes.map((note) =>
+          note.id === noteId
+            ? {
+                ...note,
+                isPlaceholder: false,
+                ownerId: state.currentUser.id,
+                lastEditBy: state.currentUser.id,
+              }
+            : note,
+        ),
+      }));
+    }
+
+    return noteId;
   },
 }));
 

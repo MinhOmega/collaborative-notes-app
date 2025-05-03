@@ -17,6 +17,7 @@ export interface Note {
   collaborators: string[];
   version: number;
   lastEditBy: string;
+  isHardcoded: boolean;
 }
 
 export interface NoteUpdate {
@@ -54,12 +55,12 @@ export interface NoteStore {
 
   // Actions
   setActiveNote: (note: Note | null) => void;
-  addNote: (title: string, content: string) => void;
+  addNote: (title: string, content: string) => string;
   updateNote: (id: string, updates: Partial<Note>) => void;
   deleteNote: (id: string) => void;
   shareNote: (noteId: string, userId: string) => void;
   unshareNote: (noteId: string, userId: string) => void;
-  createNote: () => void;
+  createNote: () => string;
 
   // Real-time actions
   addActiveUser: (user: ActiveUser, noteId: string) => void;
@@ -71,6 +72,7 @@ export interface NoteStore {
   connectToPeer: (peerId: string, noteId: string) => void;
   broadcastUpdate: (update: NoteUpdate) => void;
   broadcastPresence: (action: "join" | "leave", noteId: string) => void;
+  broadcastNoteDelete: (noteId: string) => void;
   handleIncomingData: (data: any) => void;
   resolveConflict: (localNote: Note, remoteUpdate: NoteUpdate) => Note;
 }
