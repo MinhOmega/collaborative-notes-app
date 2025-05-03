@@ -104,10 +104,7 @@ const NoteEditor = ({ noteId }: NoteEditorProps) => {
                   style={{ backgroundColor: user.color + "20" }}
                   title={`${user.name} is currently viewing this note`}
                 >
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: user.color }}
-                  />
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: user.color }} />
                   <span>{user.name}</span>
                 </div>
               ))}
@@ -121,16 +118,14 @@ const NoteEditor = ({ noteId }: NoteEditorProps) => {
             {formatDistanceToNow(new Date(activeNote.updatedAt), {
               addSuffix: true,
             })}
-            {activeNote.lastEditBy &&
-              activeNote.lastEditBy !== currentUser.id && (
-                <span>
-                  {" "}
-                  by{" "}
-                  {Array.from(activeUsers.values()).find(
-                    (u) => u.id === activeNote.lastEditBy,
-                  )?.name || "another user"}
-                </span>
-              )}
+            {activeNote.lastEditBy && activeNote.lastEditBy !== currentUser.id && (
+              <span>
+                {" "}
+                by{" "}
+                {Array.from(activeUsers.values()).find((u) => u.id === activeNote.lastEditBy)
+                  ?.name || "another user"}
+              </span>
+            )}
           </span>
           {isEditing && (
             <span className="ml-2 text-blue-500 flex items-center">
@@ -155,10 +150,7 @@ const NoteEditor = ({ noteId }: NoteEditorProps) => {
       </div>
 
       {showShareModal && (
-        <ShareNoteModal
-          note={activeNote}
-          onClose={() => setShowShareModal(false)}
-        />
+        <ShareNoteModal note={activeNote} onClose={() => setShowShareModal(false)} />
       )}
     </div>
   );

@@ -95,8 +95,7 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
               type: "initial-sync",
               notes: get().notes.filter(
                 (note) =>
-                  note.ownerId === get().currentUser.id ||
-                  note.collaborators.includes(conn.peer),
+                  note.ownerId === get().currentUser.id || note.collaborators.includes(conn.peer),
               ),
             });
             conn.on("data", (data: any) => {
@@ -183,13 +182,8 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
 
           // Update local state
           set((state) => ({
-            notes: state.notes.map((note) =>
-              note.id === data.noteId ? resolvedNote : note,
-            ),
-            activeNote:
-              state.activeNote?.id === data.noteId
-                ? resolvedNote
-                : state.activeNote,
+            notes: state.notes.map((note) => (note.id === data.noteId ? resolvedNote : note)),
+            activeNote: state.activeNote?.id === data.noteId ? resolvedNote : state.activeNote,
           }));
         } else {
           // Add new note if we don't have it
@@ -232,9 +226,7 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
           const updatedNotes = [...state.notes];
 
           syncedNotes.forEach((syncedNote: Note) => {
-            const existingNoteIndex = updatedNotes.findIndex(
-              (note) => note.id === syncedNote.id,
-            );
+            const existingNoteIndex = updatedNotes.findIndex((note) => note.id === syncedNote.id);
 
             if (existingNoteIndex >= 0) {
               // Resolve conflict for existing note
@@ -271,14 +263,8 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
       // Remote version is newer, accept remote changes
       return {
         ...localNote,
-        content:
-          remoteUpdate.content !== undefined
-            ? remoteUpdate.content
-            : localNote.content,
-        title:
-          remoteUpdate.title !== undefined
-            ? remoteUpdate.title
-            : localNote.title,
+        content: remoteUpdate.content !== undefined ? remoteUpdate.content : localNote.content,
+        title: remoteUpdate.title !== undefined ? remoteUpdate.title : localNote.title,
         updatedAt: remoteUpdate.updatedAt,
         version: remoteUpdate.version,
         lastEditBy: remoteUpdate.userId,
@@ -299,14 +285,8 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
         // Remote is more recent, accept remote changes
         return {
           ...localNote,
-          content:
-            remoteUpdate.content !== undefined
-              ? remoteUpdate.content
-              : localNote.content,
-          title:
-            remoteUpdate.title !== undefined
-              ? remoteUpdate.title
-              : localNote.title,
+          content: remoteUpdate.content !== undefined ? remoteUpdate.content : localNote.content,
+          title: remoteUpdate.title !== undefined ? remoteUpdate.title : localNote.title,
           updatedAt: remoteUpdate.updatedAt,
           version: remoteUpdate.version,
           lastEditBy: remoteUpdate.userId,
@@ -437,9 +417,7 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
   shareNote: (noteId, userId) => {
     set((state) => ({
       notes: state.notes.map((note) =>
-        note.id === noteId
-          ? { ...note, collaborators: [...note.collaborators, userId] }
-          : note,
+        note.id === noteId ? { ...note, collaborators: [...note.collaborators, userId] } : note,
       ),
     }));
 

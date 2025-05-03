@@ -5,11 +5,16 @@ import { cn } from "@/lib/utils";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Note } from "@/types/note";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-const NoteList = () => {
-  const { notes, activeNote, setActiveNote, addNote, deleteNote } =
-    useNoteStore();
+interface NoteListProps {
+  onNoteSelect?: () => void;
+}
+
+const NoteList = ({ onNoteSelect }: NoteListProps) => {
+  const { notes, activeNote, setActiveNote, addNote, deleteNote } = useNoteStore();
   const [searchTerm, setSearchTerm] = useState("");
+  const isMobile = useIsMobile();
 
   const filteredNotes = useMemo(() => {
     if (!searchTerm) return notes;
@@ -17,14 +22,20 @@ const NoteList = () => {
     const term = searchTerm.toLowerCase();
     return notes.filter(
       (note) =>
-        note.title.toLowerCase().includes(term) ||
-        note.content.toLowerCase().includes(term),
+        note.title.toLowerCase().includes(term) || note.content.toLowerCase().includes(term),
     );
   }, [notes, searchTerm]);
 
   const handleDeleteNote = (noteId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     deleteNote(noteId);
+  };
+
+  const handleNoteClick = (note: Note) => {
+    setActiveNote(note);
+    if (onNoteSelect) {
+      onNoteSelect();
+    }
   };
 
   return (
@@ -56,8 +67,9 @@ const NoteList = () => {
                 key={note.id}
                 note={note}
                 isActive={activeNote?.id === note.id}
-                onClick={() => setActiveNote(note)}
+                onClick={() => handleNoteClick(note)}
                 onDelete={(e) => handleDeleteNote(note.id, e)}
+                isMobile={isMobile}
               />
             ))}
           </div>
@@ -76,14 +88,10 @@ interface NoteListItemProps {
   isActive: boolean;
   onClick: () => void;
   onDelete: (e: React.MouseEvent) => void;
+  isMobile: boolean;
 }
 
-const NoteListItem = ({
-  note,
-  isActive,
-  onClick,
-  onDelete,
-}: NoteListItemProps) => {
+const NoteListItem = ({ note, isActive, onClick, onDelete, isMobile }: NoteListItemProps) => {
   const contentPreview = note.content
     .replace(/<[^>]*>/g, "")
     .slice(0, 50)
@@ -101,7 +109,24 @@ const NoteListItem = ({
       )}
       onClick={onClick}
     >
-      <h3 className="font-medium truncate">{note.title}</h3>
+      <div className="flex justify-between items-start">
+        <h3 className="font-medium truncate pr-8">{note.title}</h3>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "right-2 top-2",
+            isMobile
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100 transition-opacity absolute",
+          )}
+          onClick={onDelete}
+          aria-label="Delete note"
+        >
+          <Trash2 size={16} />
+        </Button>
+      </div>
 
       <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
         {contentPreview || "Empty note..."}
@@ -117,15 +142,6 @@ const NoteListItem = ({
           </div>
         )}
       </div>
-
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={onDelete}
-      >
-        <Trash2 size={16} />
-      </Button>
     </div>
   );
 };

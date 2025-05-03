@@ -81,17 +81,13 @@ const ShareNoteModal = ({ note, onClose }: ShareNoteModalProps) => {
               onClick={copyShareInfo}
               className="text-xs flex items-center flex-1"
             >
-              {copied ? (
-                <Check size={14} className="mr-1" />
-              ) : (
-                <Copy size={14} className="mr-1" />
-              )}
+              {copied ? <Check size={14} className="mr-1" /> : <Copy size={14} className="mr-1" />}
               {copied ? "Copied!" : "Copy Share Info"}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Others will need both the Note ID and Peer ID to join. The copied
-            format can be directly pasted into the Join Note dialog.
+            Others will need both the Note ID and Peer ID to join. The copied format can be directly
+            pasted into the Join Note dialog.
           </p>
         </div>
 
@@ -109,8 +105,8 @@ const ShareNoteModal = ({ note, onClose }: ShareNoteModalProps) => {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Collaborators will need to connect using their user ID. You can also
-            share your note info with them directly.
+            Collaborators will need to connect using their user ID. You can also share your note
+            info with them directly.
           </p>
         </div>
 
@@ -132,8 +128,8 @@ const ShareNoteModal = ({ note, onClose }: ShareNoteModalProps) => {
         <div className="mt-4 pt-4 border-t">
           <p className="text-xs text-muted-foreground">
             <strong>Note:</strong> Your peer ID is{" "}
-            <span className="font-mono">{currentUser.id}</span>. Share this with
-            others so they can add you as a collaborator.
+            <span className="font-mono">{currentUser.id}</span>. Share this with others so they can
+            add you as a collaborator.
           </p>
         </div>
       </div>

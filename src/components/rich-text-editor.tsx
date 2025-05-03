@@ -1,21 +1,22 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
+import { useNoteStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
+import { ActiveUser } from "@/types/note";
 import Underline from "@tiptap/extension-underline";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { debounce } from "lodash-es";
 import {
   Bold,
   Italic,
-  Underline as UnderlineIcon,
-  ListOrdered,
   List,
+  ListOrdered,
+  Underline as UnderlineIcon,
   Users,
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useNoteStore } from "@/lib/store";
-import { debounce } from "lodash-es";
-import { ActiveUser } from "@/types/note";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ToolbarButton from "./ui/toolbar-button";
 
 interface RichTextEditorProps {
   content: string;
@@ -41,7 +42,19 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
   );
 
   const editor = useEditor({
-    extensions: [StarterKit, Underline],
+    extensions: [
+      StarterKit.configure({
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+      }),
+      Underline,
+    ],
     content,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -51,20 +64,13 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
   });
 
   useEffect(() => {
-    if (
-      editor &&
-      content !== localContent &&
-      content !== lastSyncedContentRef.current
-    ) {
+    if (editor && content !== localContent && content !== lastSyncedContentRef.current) {
       const selection = editor.state.selection;
       const { from, to } = selection;
 
       editor.commands.setContent(content);
 
-      if (
-        from < editor.state.doc.content.size &&
-        to < editor.state.doc.content.size
-      ) {
+      if (from < editor.state.doc.content.size && to < editor.state.doc.content.size) {
         editor.commands.setTextSelection({ from, to });
       }
 
@@ -81,32 +87,6 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
     }
   }, [editor, content]);
 
-  const ToolbarButton = ({
-    isActive,
-    onClick,
-    children,
-    label,
-  }: {
-    isActive: boolean;
-    onClick: () => void;
-    children: React.ReactNode;
-    label: string;
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "p-2 rounded hover:bg-muted transition-colors",
-        isActive ? "bg-muted text-primary" : "text-muted-foreground",
-      )}
-      aria-label={label}
-      title={label}
-      tabIndex={0}
-    >
-      {children}
-    </button>
-  );
-
   if (!editor) {
     return null;
   }
@@ -115,11 +95,12 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
 
   return (
     <div className={cn("border rounded-md overflow-hidden relative")}>
-      <div className="flex p-1 border-b gap-1">
+      <div className="flex flex-wrap p-1 border-b gap-1">
         <ToolbarButton
           isActive={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
           label="Bold"
+          disabled={!editor.can().chain().focus().toggleBold().run()}
         >
           <Bold size={18} />
         </ToolbarButton>
@@ -128,6 +109,7 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
           isActive={editor.isActive("italic")}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           label="Italic"
+          disabled={!editor.can().chain().focus().toggleItalic().run()}
         >
           <Italic size={18} />
         </ToolbarButton>
@@ -136,26 +118,28 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
           isActive={editor.isActive("underline")}
           onClick={() => editor.chain().focus().toggleMark("underline").run()}
           label="Underline"
+          disabled={!editor.can().chain().focus().toggleMark("underline").run()}
         >
           <UnderlineIcon size={18} />
         </ToolbarButton>
 
         <ToolbarButton
-          isActive={editor.isActive("bulletList")}
+          isActive={editor.isActive({ name: "bulletList" })}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           label="Bullet List"
+          disabled={!editor.can().chain().focus().toggleBulletList().run()}
         >
           <List size={18} />
         </ToolbarButton>
 
         <ToolbarButton
-          isActive={editor.isActive("orderedList")}
+          isActive={editor.isActive({ name: "orderedList" })}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           label="Ordered List"
+          disabled={!editor.can().chain().focus().toggleOrderedList().run()}
         >
           <ListOrdered size={18} />
         </ToolbarButton>
-
         <div className="flex-1"></div>
 
         <div
@@ -163,9 +147,7 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
             "px-2 flex items-center gap-1 text-xs rounded",
             isOnline ? "text-green-600" : "text-red-600 bg-red-50",
           )}
-          title={
-            isOnline ? "Connected" : "Connection error. Changes may not sync."
-          }
+          title={isOnline ? "Connected" : "Connection error. Changes may not sync."}
         >
           {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
           <span>{isOnline ? "Online" : "Offline"}</span>
@@ -195,10 +177,7 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
                 className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
                 style={{ backgroundColor: user.color + "20" }}
               >
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: user.color }}
-                />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: user.color }} />
                 <span>{user.name}</span>
               </div>
             ))}
@@ -208,7 +187,7 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
 
       <EditorContent
         editor={editor}
-        className="p-4 prose prose-sm max-w-none focus:outline-none min-h-[200px]"
+        className="p-4 prose prose-sm max-w-none focus:outline-none min-h-[200px] editor-content prose-ul:pl-5 prose-ol:pl-5 prose-ul:list-disc prose-ol:list-decimal"
       />
     </div>
   );

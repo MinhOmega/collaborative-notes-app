@@ -33,9 +33,7 @@ const JoinNoteModal = ({ onClose }: JoinNoteModalProps) => {
 
         setError("");
       } catch (err) {
-        setError(
-          "Failed to parse clipboard content. Please paste the values manually.",
-        );
+        setError("Failed to parse clipboard content. Please paste the values manually.");
       }
     }
   };
@@ -125,8 +123,7 @@ const JoinNoteModal = ({ onClose }: JoinNoteModalProps) => {
         <div className="mb-4">
           <div className="flex justify-between items-center mb-4">
             <p className="text-sm text-muted-foreground">
-              Enter the note ID and peer ID to join a collaborative editing
-              session.
+              Enter the note ID and peer ID to join a collaborative editing session.
             </p>
             <Button
               variant="ghost"
@@ -156,9 +153,7 @@ const JoinNoteModal = ({ onClose }: JoinNoteModalProps) => {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">
-                Peer ID (Note Owner's ID)
-              </label>
+              <label className="text-sm font-medium mb-1 block">Peer ID (Note Owner's ID)</label>
               <Input
                 placeholder="Enter peer ID"
                 value={peerId}
@@ -183,9 +178,8 @@ const JoinNoteModal = ({ onClose }: JoinNoteModalProps) => {
 
         <div className="mt-4 pt-4 border-t">
           <p className="text-xs text-muted-foreground">
-            <strong>Note:</strong> You can copy the note ID and peer ID from the
-            person who shared the note with you. If you've copied the share
-            info, it will be automatically filled in.
+            <strong>Note:</strong> You can copy the note ID and peer ID from the person who shared
+            the note with you. If you've copied the share info, it will be automatically filled in.
           </p>
         </div>
       </div>
