@@ -94,7 +94,7 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
   initializePeer: async () => {
     try {
       set({ isLoading: true });
-      const shorterId = get().currentUser.id.split("-")[0];
+      const userId = get().currentUser.id;
 
       const createPeer = (id: string): Promise<Peer> => {
         return new Promise((resolve, reject) => {
@@ -118,37 +118,18 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
       };
 
       try {
-        const peer = await createPeer(shorterId);
+        const peer = await createPeer(userId);
 
         set((state) => ({
           currentUser: {
             ...state.currentUser,
-            id: shorterId,
+            id: userId,
           },
           peer,
           isLoading: false,
         }));
       } catch (err) {
         console.warn("ID was taken, trying with random suffix");
-        const randomSuffix = Math.floor(Math.random() * 10000);
-        const alternativeId = `${shorterId}_${randomSuffix}`;
-
-        try {
-          const peer = await createPeer(alternativeId);
-
-          set((state) => ({
-            currentUser: {
-              ...state.currentUser,
-              id: alternativeId,
-            },
-            peer,
-            isLoading: false,
-          }));
-        } catch (secondError) {
-          console.warn("Alternative ID also taken, using full UUID");
-          const peer = await createPeer(get().currentUser.id);
-          set({ peer, isLoading: false });
-        }
       }
 
       const peer = get().peer;
@@ -190,7 +171,6 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
   },
 
   connectToPeer: (peerId, noteId) => {
-    // Skip connections for sample notes with ownerId "ME"
     const note = get().notes.find((note) => note.id === noteId);
     if (note && note.ownerId === "ME") {
       return;
@@ -285,11 +265,6 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
         // Handle user presence
         const presenceData = data as UserPresence;
 
-        // if (presenceData.action === "join") {
-        //   get().addActiveUser(presenceData.user, presenceData.noteId);
-        // } else {
-        //   get().removeActiveUser(presenceData.user.id);
-        // }
         if (presenceData.action === "join") {
           get().addActiveUser(presenceData.user, presenceData.noteId);
           const userNote = get().notes.find((note) => note.id === presenceData.noteId);
@@ -532,7 +507,6 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
         activeNote: state.activeNote?.id === id ? updatedNote : state.activeNote,
       }));
 
-      // Save hardcoded notes to localStorage
       const hardcodedNotes = get().notes.filter((n) => n.isHardcoded);
       localStorage.setItem(LOCAL_STORAGE_NOTES_KEY, JSON.stringify(hardcodedNotes));
       return;
@@ -583,10 +557,8 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
       return;
     }
 
-    // First notify about deletion
     get().broadcastNoteDelete(id);
 
-    // Close connections with collaborators specifically for this note
     noteToDelete.collaborators.forEach((collaboratorId) => {
       if (collaboratorId !== get().currentUser.id) {
         const conn = get().connections.get(collaboratorId);
@@ -597,7 +569,6 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
             userId: get().currentUser.id,
           });
 
-          // Don't close the connection immediately if there might be other shared notes
           const otherSharedNotes = get().notes.filter(
             (note) =>
               (note.id !== id &&
@@ -607,7 +578,6 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
                 note.collaborators.includes(get().currentUser.id)),
           );
 
-          // If no other shared notes with this collaborator, close connection
           if (otherSharedNotes.length === 0) {
             console.log(
               `Closing connection with ${collaboratorId} as there are no more shared notes`,
@@ -630,7 +600,6 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
 
     set((state) => {
       const filteredNotes = state.notes.filter((note) => note.id !== id);
-      // Don't save to localStorage for non-placeholder notes
       return {
         notes: filteredNotes,
       };
@@ -683,17 +652,11 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
     get().updateNote(noteId, { content });
   },
 
-  // createNote: () => {
-  //   const title = "Untitled Note";
-  //   const content = "";
-  //   get().addNote(title, content);
-  // },
   createNote: () => {
     const title = "Untitled Note";
     const content = "";
     const noteId = get().addNote(title, content) || "";
 
-    // Update the new note with additional properties
     if (noteId) {
       set((state) => ({
         notes: state.notes.map((note) =>
@@ -712,27 +675,3 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
     return noteId;
   },
 }));
-
-export const initializeUserFingerprint = async () => {
-  try {
-    const USER_ID_KEY = "user-fingerprint-id";
-    let userId = localStorage.getItem(USER_ID_KEY);
-    if (!userId) {
-      userId = uuidv4();
-      localStorage.setItem(USER_ID_KEY, userId);
-    }
-
-    if (useNoteStore.getState().currentUser.id !== userId) {
-      useNoteStore.setState((state) => ({
-        currentUser: {
-          ...state.currentUser,
-          id: userId,
-        },
-      }));
-    }
-
-    useNoteStore.getState().initializePeer();
-  } catch (error) {
-    console.error("Have some issue in initializeUserFingerprint", error);
-  }
-};

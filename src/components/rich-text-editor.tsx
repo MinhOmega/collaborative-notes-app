@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ToolbarButton from "./ui/toolbar-button";
+import ActiveUsersList from "./active-users-list";
 
 interface RichTextEditorProps {
   content: string;
@@ -25,11 +26,15 @@ interface RichTextEditorProps {
 }
 
 export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
-  const { syncNoteContent, activeUsers, error } = useNoteStore();
+  const { syncNoteContent, activeUsers, error, notes } = useNoteStore();
   const [localContent, setLocalContent] = useState(content);
   const isInitialUpdateRef = useRef(true);
   const lastSyncedContentRef = useRef(content);
   const [showActiveUsers, setShowActiveUsers] = useState(false);
+
+  const currentNote = notes.find((note) => note.id === noteId);
+  const isHardcoded = currentNote?.isHardcoded || false;
+  const activeUsersList = Array.from(activeUsers.values());
 
   const debouncedSync = useCallback(
     debounce((noteId: string, html: string) => {
@@ -92,9 +97,47 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
   }
 
   const isOnline = !error;
+  const topRightCornerElm = isHardcoded ? (
+    <div
+      className="px-2 flex items-center gap-1 text-xs rounded bg-amber-100 text-amber-800"
+      title="This is a sample note. Changes are saved locally."
+    >
+      <span>Local Only</span>
+    </div>
+  ) : (
+    <>
+      <div
+        className={cn(
+          "px-2 flex items-center gap-1 text-xs rounded",
+          isOnline ? "text-green-600" : "text-red-600 bg-red-50",
+        )}
+        title={isOnline ? "Connected" : "Connection error. Changes may not sync."}
+      >
+        {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
+        <span>{isOnline ? "Online" : "Offline"}</span>
+      </div>
+      <ToolbarButton
+        isActive={showActiveUsers}
+        onClick={() => setShowActiveUsers(!showActiveUsers)}
+        label="Show Active Users"
+      >
+        <Users size={18} />
+        {activeUsersList.length > 0 && (
+          <span className="absolute top-0 right-0 bg-primary text-white rounded-full h-4 w-4 flex items-center justify-center text-xs">
+            {activeUsersList.length}
+          </span>
+        )}
+      </ToolbarButton>
+    </>
+  );
 
   return (
-    <div className={cn("border rounded-md overflow-hidden relative")}>
+    <div
+      className={cn(
+        "border rounded-md overflow-hidden relative",
+        isHardcoded && "border-amber-200",
+      )}
+    >
       <div className="flex flex-wrap p-1 border-b gap-1">
         <ToolbarButton
           isActive={editor.isActive("bold")}
@@ -142,46 +185,13 @@ export const RichTextEditor = ({ content, noteId }: RichTextEditorProps) => {
         </ToolbarButton>
         <div className="flex-1"></div>
 
-        <div
-          className={cn(
-            "px-2 flex items-center gap-1 text-xs rounded",
-            isOnline ? "text-green-600" : "text-red-600 bg-red-50",
-          )}
-          title={isOnline ? "Connected" : "Connection error. Changes may not sync."}
-        >
-          {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-          <span>{isOnline ? "Online" : "Offline"}</span>
-        </div>
-
-        <ToolbarButton
-          isActive={showActiveUsers}
-          onClick={() => setShowActiveUsers(!showActiveUsers)}
-          label="Show Active Users"
-        >
-          <Users size={18} />
-          {activeUsers.size > 0 && (
-            <span className="absolute top-0 right-0 bg-primary text-white rounded-full h-4 w-4 flex items-center justify-center text-xs">
-              {activeUsers.size}
-            </span>
-          )}
-        </ToolbarButton>
+        {topRightCornerElm}
       </div>
 
-      {showActiveUsers && activeUsers.size > 0 && (
+      {showActiveUsers && activeUsersList.length > 0 && (
         <div className="p-2 border-b bg-muted/10">
-          <h3 className="text-sm font-medium mb-1">Active Users</h3>
-          <div className="flex flex-wrap gap-1">
-            {Array.from(activeUsers.values()).map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-                style={{ backgroundColor: user.color + "20" }}
-              >
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: user.color }} />
-                <span>{user.name}</span>
-              </div>
-            ))}
-          </div>
+          <h3 className="text-sm font-medium mb-1">Active Collaborators</h3>
+          <ActiveUsersList users={activeUsersList} />
         </div>
       )}
 

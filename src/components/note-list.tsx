@@ -6,6 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Note } from "@/types/note";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface NoteListProps {
   onNoteSelect?: () => void;
@@ -14,7 +15,6 @@ interface NoteListProps {
 const NoteList = ({ onNoteSelect }: NoteListProps) => {
   const { notes, activeNote, setActiveNote, addNote, deleteNote } = useNoteStore();
   const [searchTerm, setSearchTerm] = useState("");
-  const isMobile = useIsMobile();
 
   const filteredNotes = useMemo(() => {
     if (!searchTerm) return notes;
@@ -69,7 +69,6 @@ const NoteList = ({ onNoteSelect }: NoteListProps) => {
                 isActive={activeNote?.id === note.id}
                 onClick={() => handleNoteClick(note)}
                 onDelete={(e) => handleDeleteNote(note.id, e)}
-                isMobile={isMobile}
               />
             ))}
           </div>
@@ -88,10 +87,12 @@ interface NoteListItemProps {
   isActive: boolean;
   onClick: () => void;
   onDelete: (e: React.MouseEvent) => void;
-  isMobile: boolean;
 }
 
-const NoteListItem = ({ note, isActive, onClick, onDelete, isMobile }: NoteListItemProps) => {
+const NoteListItem = ({ note, isActive, onClick, onDelete }: NoteListItemProps) => {
+  const { currentUser } = useNoteStore();
+  const isMobile = useIsMobile();
+  const isOwner = note.id === currentUser.id;
   const contentPreview = note.content
     .replace(/<[^>]*>/g, "")
     .slice(0, 50)
@@ -106,6 +107,7 @@ const NoteListItem = ({ note, isActive, onClick, onDelete, isMobile }: NoteListI
       className={cn(
         "p-3 cursor-pointer hover:bg-secondary/50 relative group",
         isActive && "bg-secondary",
+        note.isHardcoded && "border-l-4 border-amber-300",
       )}
       onClick={onClick}
     >
@@ -133,8 +135,38 @@ const NoteListItem = ({ note, isActive, onClick, onDelete, isMobile }: NoteListI
       </p>
 
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-muted-foreground">{updatedTime}</span>
-        {note.collaborators && note.collaborators.length > 0 && (
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground">{updatedTime}</span>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 ml-1 rounded-full text-xs">
+                  <div
+                    className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-medium"
+                    style={{ backgroundColor: currentUser.color }}
+                  >
+                    {isOwner ? "Y" : ""}
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <div className="text-xs">
+                  <p>Owner: {currentUser.name}</p>
+                  <p className="font-mono">ID: {currentUser.id}</p>
+                  {isOwner && <p className="font-bold">You are the owner</p>}
+                  {note.isHardcoded && <p className="font-bold text-amber-600">Sample Note</p>}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {note.isHardcoded && (
+            <span className="ml-1 text-xs px-1 bg-amber-100 text-amber-800 rounded">Sample</span>
+          )}
+        </div>
+
+        {note.collaborators && note.collaborators.length > 0 && !note.isHardcoded && (
           <div className="flex -space-x-2">
             <div className="w-5 h-5 rounded-full border-2 border-background flex items-center justify-center text-[8px] bg-muted">
               +{note.collaborators.length}

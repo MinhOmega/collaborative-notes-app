@@ -4,29 +4,32 @@ import { useNoteStore } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 import { debounce } from "lodash-es";
 import { AlertCircle, Share2 } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import ShareNoteModal from "./share-note-modal";
 import { Button } from "./ui/button";
-import { ActiveUser } from "@/types/note";
 
 interface NoteEditorProps {
   noteId: string;
 }
 
 const NoteEditor = ({ noteId }: NoteEditorProps) => {
-  const {
-    activeNote,
-    setActiveNote,
-    currentUser,
-    activeUsers,
-    updateNote,
-    peer,
-    initializePeer,
-    error,
-  } = useNoteStore();
+  const { activeNote, setActiveNote, currentUser, activeUsers, updateNote, error } = useNoteStore();
   const [title, setTitle] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+
+  const nameOfLastEdit = useMemo(() => {
+    if (activeNote?.ownerId === "ME") {
+      return "me";
+    }
+    const activeUsersList = Array.from(activeUsers.values());
+    if (activeNote?.lastEditBy === currentUser?.id) {
+      return "me";
+    } else if(activeNote?.lastEditBy === activeNote?.ownerId) {
+      return "owner note"
+    }
+    return activeUsersList.find((u) => u.id === activeNote?.lastEditBy)?.name || "another user";
+  }, [activeNote, activeUsers]);
 
   useEffect(() => {
     if (noteId) {
@@ -91,53 +94,50 @@ const NoteEditor = ({ noteId }: NoteEditorProps) => {
               size="sm"
               onClick={handleShareClick}
               className="flex items-center"
+              disabled={activeNote?.isHardcoded}
+              title={activeNote?.isHardcoded ? "Sample notes cannot be shared" : "Share note"}
             >
               <Share2 size={16} className="mr-1" />
               Share
             </Button>
-
-            <div className="flex items-center space-x-1">
-              {Array.from(activeUsers.values()).map((user: ActiveUser) => (
-                <div
-                  key={user.id}
-                  className="flex items-center space-x-1 px-2 py-1 rounded-full text-sm"
-                  style={{ backgroundColor: user.color + "20" }}
-                  title={`${user.name} is currently viewing this note`}
-                >
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: user.color }} />
-                  <span>{user.name}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
-        <div className="flex items-center mt-1 text-sm text-gray-500">
-          <span>
-            Last edited:{" "}
-            {formatDistanceToNow(new Date(activeNote.updatedAt), {
-              addSuffix: true,
-            })}
-            {activeNote.lastEditBy && activeNote.lastEditBy !== currentUser.id && (
-              <span>
-                {" "}
-                by{" "}
-                {Array.from(activeUsers.values()).find((u) => u.id === activeNote.lastEditBy)
-                  ?.name || "another user"}
+        <div className="flex items-center mt-2 text-sm text-gray-500 justify-between">
+          <div>
+            <span>
+              Last edited:{" "}
+              {formatDistanceToNow(new Date(activeNote.updatedAt), {
+                addSuffix: true,
+              })}
+            </span>
+            <span className="ml-1">by {nameOfLastEdit}</span>
+
+            {isEditing && (
+              <span className="ml-2 text-blue-500 flex items-center">
+                <span className="animate-pulse mr-1">●</span> Editing...
               </span>
             )}
-          </span>
-          {isEditing && (
-            <span className="ml-2 text-blue-500 flex items-center">
-              <span className="animate-pulse mr-1">●</span> Editing...
-            </span>
-          )}
+            {activeNote.isHardcoded && (
+              <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-xs">
+                Sample Note
+              </span>
+            )}
+          </div>
         </div>
 
         {error && (
           <div className="mt-2 p-2 bg-red-50 text-red-800 rounded-md flex items-center">
             <AlertCircle size={16} className="mr-2 flex-shrink-0" />
             <span className="text-sm">{error}</span>
+          </div>
+        )}
+
+        {activeNote.isHardcoded && (
+          <div className="mt-2 p-2 bg-amber-50 text-amber-800 rounded-md flex items-center text-sm">
+            <AlertCircle size={16} className="mr-2 flex-shrink-0" />
+            This is a sample note. Your changes will be saved locally but you cannot share it with
+            others.
           </div>
         )}
       </div>
