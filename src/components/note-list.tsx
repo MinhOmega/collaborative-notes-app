@@ -1,11 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useNoteStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
 import { Note } from "@/types/note";
-import { formatDistanceToNow } from "date-fns";
-import { Plus, Trash2 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import { Plus } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import NoteListItem from "./note-list-item";
 
 interface NoteListProps {
   onNoteSelect?: () => void;
@@ -14,36 +12,61 @@ interface NoteListProps {
 const NoteList = ({ onNoteSelect }: NoteListProps) => {
   const { notes, activeNote, setActiveNote, addNote, deleteNote } = useNoteStore();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
 
   const filteredNotes = useMemo(() => {
-    if (!searchTerm) return notes;
+    if (!debouncedSearchTerm) return notes;
 
-    const term = searchTerm.toLowerCase();
+    const term = debouncedSearchTerm.toLowerCase();
     return notes.filter(
       (note) =>
         note.title.toLowerCase().includes(term) || note.content.toLowerCase().includes(term),
     );
-  }, [notes, searchTerm]);
+  }, [notes, debouncedSearchTerm]);
 
-  const handleDeleteNote = (noteId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    deleteNote(noteId);
-  };
+  const handleDeleteNote = useCallback(
+    (noteId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      deleteNote(noteId);
+    },
+    [deleteNote],
+  );
 
-  const handleNoteClick = (note: Note) => {
-    setActiveNote(note);
-    if (onNoteSelect) {
-      onNoteSelect();
-    }
-  };
+  const handleNoteClick = useCallback(
+    (note: Note) => {
+      setActiveNote(note);
+      if (onNoteSelect) {
+        onNoteSelect();
+      }
+    },
+    [setActiveNote, onNoteSelect],
+  );
+
+  const handleAddNote = useCallback(() => {
+    addNote("Untitled Note", "");
+  }, [addNote]);
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b">
-        <Button
-          onClick={() => addNote("Untitled Note", "")}
-          className="w-full flex items-center justify-center gap-2"
-        >
+        <Button onClick={handleAddNote} className="w-full flex items-center justify-center gap-2">
           <Plus size={16} /> New Note
         </Button>
       </div>
@@ -60,17 +83,12 @@ const NoteList = ({ onNoteSelect }: NoteListProps) => {
 
       <div className="flex-1 overflow-y-auto">
         {filteredNotes.length > 0 ? (
-          <div className="divide-y">
-            {filteredNotes.map((note) => (
-              <NoteListItem
-                key={note.id}
-                note={note}
-                isActive={activeNote?.id === note.id}
-                onClick={() => handleNoteClick(note)}
-                onDelete={(e) => handleDeleteNote(note.id, e)}
-              />
-            ))}
-          </div>
+          <NoteListItem
+            notes={filteredNotes}
+            activeNoteId={activeNote?.id}
+            handleNoteClick={handleNoteClick}
+            handleDeleteNote={handleDeleteNote}
+          />
         ) : (
           <div className="p-4 text-center text-muted-foreground">
             No notes found. Create a new one!
@@ -81,75 +99,4 @@ const NoteList = ({ onNoteSelect }: NoteListProps) => {
   );
 };
 
-interface NoteListItemProps {
-  note: Note;
-  isActive: boolean;
-  onClick: () => void;
-  onDelete: (e: React.MouseEvent) => void;
-}
-
-const NoteListItem = ({ note, isActive, onClick, onDelete }: NoteListItemProps) => {
-  const isMobile = useIsMobile();
-  const contentPreview = note.content
-    .replace(/<[^>]*>/g, "")
-    .slice(0, 50)
-    .trim();
-
-  const updatedTime = note.updatedAt
-    ? formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })
-    : "recently";
-
-  return (
-    <div
-      className={cn(
-        "p-3 cursor-pointer hover:bg-secondary/50 relative group",
-        isActive && "bg-secondary",
-        note.isHardcoded && "border-l-4 border-amber-300",
-      )}
-      onClick={onClick}
-    >
-      <div className="flex justify-between items-start">
-        <h3 className="font-medium truncate pr-8">{note.title}</h3>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "right-2 top-2",
-            isMobile
-              ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100 transition-opacity absolute",
-          )}
-          onClick={onDelete}
-          aria-label="Delete note"
-        >
-          <Trash2 size={16} />
-        </Button>
-      </div>
-
-      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-        {contentPreview || "Empty note..."}
-      </p>
-
-      <div className="flex items-center justify-between mt-2">
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-muted-foreground">{updatedTime}</span>
-
-          {note.isHardcoded && (
-            <span className="ml-1 text-xs px-1 bg-amber-100 text-amber-800 rounded">Sample</span>
-          )}
-        </div>
-
-        {note.collaborators && note.collaborators.length > 0 && !note.isHardcoded && (
-          <div className="flex -space-x-2">
-            <div className="w-5 h-5 rounded-full border-2 border-background flex items-center justify-center text-[8px] bg-muted">
-              +{note.collaborators.length}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default NoteList;
+export default React.memo(NoteList);

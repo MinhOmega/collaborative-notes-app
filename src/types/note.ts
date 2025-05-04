@@ -58,7 +58,6 @@ export interface NoteStore {
   addNote: (title: string, content: string) => string;
   updateNote: (id: string, updates: Partial<Note>) => void;
   deleteNote: (id: string) => void;
-  shareNote: (noteId: string, userId: string) => void;
   unshareNote: (noteId: string, userId: string) => void;
   createNote: () => string;
 

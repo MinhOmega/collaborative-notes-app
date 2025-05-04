@@ -2,7 +2,6 @@ import { useNoteStore } from "@/lib/store";
 import { Check, Copy, Share2, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Note } from "@/types/note";
 
 interface ShareNoteModalProps {
@@ -11,18 +10,10 @@ interface ShareNoteModalProps {
 }
 
 const ShareNoteModal = ({ note, onClose }: ShareNoteModalProps) => {
-  const { shareNote, currentUser } = useNoteStore();
-  const [collaboratorId, setCollaboratorId] = useState("");
+  const { currentUser } = useNoteStore();
   const [copied, setCopied] = useState(false);
 
   if (!note) return null;
-
-  const handleShareNote = () => {
-    if (collaboratorId && note) {
-      shareNote(note.id, collaboratorId);
-      setCollaboratorId("");
-    }
-  };
 
   const copyShareInfo = () => {
     if (note) {
@@ -91,25 +82,6 @@ const ShareNoteModal = ({ note, onClose }: ShareNoteModalProps) => {
           </p>
         </div>
 
-        <div className="mb-4">
-          <h3 className="text-sm font-medium mb-1">Add Collaborator</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter collaborator ID"
-              value={collaboratorId}
-              onChange={(e) => setCollaboratorId(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={handleShareNote} disabled={!collaboratorId}>
-              Add
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Collaborators will need to connect using their user ID. You can also share your note
-            info with them directly.
-          </p>
-        </div>
-
         {note.collaborators.length > 0 && (
           <div>
             <h3 className="text-sm font-medium mb-1">Current Collaborators</h3>
@@ -124,14 +96,6 @@ const ShareNoteModal = ({ note, onClose }: ShareNoteModalProps) => {
             </div>
           </div>
         )}
-
-        <div className="mt-4 pt-4 border-t">
-          <p className="text-xs text-muted-foreground">
-            <strong>Note:</strong> Your peer ID is{" "}
-            <span className="font-mono">{currentUser.id}</span>. Share this with others so they can
-            add you as a collaborator.
-          </p>
-        </div>
       </div>
     </div>
   );

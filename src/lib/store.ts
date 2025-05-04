@@ -616,37 +616,6 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
     });
   },
 
-  shareNote: (noteId, userId) => {
-    const note = get().notes.find((note) => note.id === noteId);
-    if (!note) return;
-    if (note.isHardcoded) return;
-
-    set((state) => ({
-      notes: state.notes.map((note) =>
-        note.id === noteId ? { ...note, collaborators: [...note.collaborators, userId] } : note,
-      ),
-    }));
-
-    const { peer, connections } = get();
-    if (!peer) {
-      set({ error: "PeerJS not initialized. Try refreshing the page." });
-      return;
-    }
-
-    if (connections.has(userId)) {
-      const conn = connections.get(userId);
-      if (conn && conn.open) {
-        conn.send({
-          type: "initial-sync",
-          notes: [note],
-        });
-      }
-      return;
-    }
-
-    get().connectToPeer(userId, noteId);
-  },
-
   unshareNote: (noteId, userId) => {
     set((state) => ({
       notes: state.notes.map((note) =>
