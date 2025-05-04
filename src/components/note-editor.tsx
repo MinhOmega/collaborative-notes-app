@@ -25,8 +25,8 @@ const NoteEditor = ({ noteId }: NoteEditorProps) => {
     const activeUsersList = Array.from(activeUsers.values());
     if (activeNote?.lastEditBy === currentUser?.id) {
       return "me";
-    } else if(activeNote?.lastEditBy === activeNote?.ownerId) {
-      return "owner note"
+    } else if (activeNote?.lastEditBy === activeNote?.ownerId) {
+      return "owner note";
     }
     return activeUsersList.find((u) => u.id === activeNote?.lastEditBy)?.name || "another user";
   }, [activeNote, activeUsers]);
@@ -103,27 +103,25 @@ const NoteEditor = ({ noteId }: NoteEditorProps) => {
           </div>
         </div>
 
-        <div className="flex items-center mt-2 text-sm text-gray-500 justify-between">
-          <div>
-            <span>
-              Last edited:{" "}
-              {formatDistanceToNow(new Date(activeNote.updatedAt), {
-                addSuffix: true,
-              })}
-            </span>
-            <span className="ml-1">by {nameOfLastEdit}</span>
+        <div className="flex items-center mt-2 text-sm text-gray-500">
+          <span>
+            Last edited:{" "}
+            {formatDistanceToNow(new Date(activeNote.updatedAt), {
+              addSuffix: true,
+            })}
+          </span>
+          <span className="ml-1">by {nameOfLastEdit}</span>
 
-            {isEditing && (
-              <span className="ml-2 text-blue-500 flex items-center">
-                <span className="animate-pulse mr-1">●</span> Editing...
-              </span>
-            )}
-            {activeNote.isHardcoded && (
-              <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-xs">
-                Sample Note
-              </span>
-            )}
-          </div>
+          {isEditing && (
+            <span className="ml-2 text-blue-500 flex items-center">
+              <span className="animate-pulse mr-1">●</span> Editing...
+            </span>
+          )}
+          {activeNote.isHardcoded && (
+            <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-xs">
+              Sample Note
+            </span>
+          )}
         </div>
 
         {error && (

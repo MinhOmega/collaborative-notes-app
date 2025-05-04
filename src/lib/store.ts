@@ -144,7 +144,7 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
               type: "initial-sync",
               notes: get().notes.filter(
                 (note) =>
-                  note.ownerId === get().currentUser.id || note.collaborators.includes(conn.peer),
+                  note.ownerId === get().currentUser.id && note.collaborators.includes(conn.peer),
               ),
             });
             conn.on("data", (data: any) => {
@@ -192,12 +192,20 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
         connections: new Map(state.connections).set(peerId, conn),
         error: null,
       }));
+
       conn.send({
         type: "presence",
         action: "join",
         noteId,
         user: currentUser,
       });
+
+      conn.send({
+        type: "request-sync",
+        noteId,
+        userId: currentUser.id,
+      });
+
       conn.on("data", (data: any) => {
         get().handleIncomingData(data);
       });
@@ -300,8 +308,8 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
           const notesToShare = get().notes.filter(
             (note) =>
               note.id === requestedNoteId &&
-              (note.ownerId === get().currentUser.id ||
-                note.collaborators.includes(requestingUser)),
+              note.ownerId === get().currentUser.id &&
+              note.collaborators.includes(requestingUser),
           );
 
           const conn = get().connections.get(requestingUser);
@@ -328,7 +336,6 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
         // Handle initial data sync
         const syncedNotes = data.notes || [];
 
-        // Merge with existing notes
         set((state) => {
           const updatedNotes = [...state.notes];
 
@@ -349,8 +356,11 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
                 },
               );
             } else {
-              // Add new note
-              updatedNotes.push(syncedNote);
+              updatedNotes.push({
+                ...syncedNote,
+                createdAt: new Date(syncedNote.createdAt),
+                updatedAt: new Date(syncedNote.updatedAt),
+              });
             }
           });
 
@@ -610,11 +620,29 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
     const note = get().notes.find((note) => note.id === noteId);
     if (!note) return;
     if (note.isHardcoded) return;
+
     set((state) => ({
       notes: state.notes.map((note) =>
         note.id === noteId ? { ...note, collaborators: [...note.collaborators, userId] } : note,
       ),
     }));
+
+    const { peer, connections } = get();
+    if (!peer) {
+      set({ error: "PeerJS not initialized. Try refreshing the page." });
+      return;
+    }
+
+    if (connections.has(userId)) {
+      const conn = connections.get(userId);
+      if (conn && conn.open) {
+        conn.send({
+          type: "initial-sync",
+          notes: [note],
+        });
+      }
+      return;
+    }
 
     get().connectToPeer(userId, noteId);
   },

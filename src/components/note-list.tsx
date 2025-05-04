@@ -1,12 +1,11 @@
-import React, { useState, useMemo } from "react";
-import { useNoteStore } from "@/lib/store";
-import { formatDistanceToNow } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Note } from "@/types/note";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { useNoteStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
+import { Note } from "@/types/note";
+import { formatDistanceToNow } from "date-fns";
+import { Plus, Trash2 } from "lucide-react";
+import React, { useMemo, useState } from "react";
 
 interface NoteListProps {
   onNoteSelect?: () => void;
@@ -90,9 +89,7 @@ interface NoteListItemProps {
 }
 
 const NoteListItem = ({ note, isActive, onClick, onDelete }: NoteListItemProps) => {
-  const { currentUser } = useNoteStore();
   const isMobile = useIsMobile();
-  const isOwner = note.id === currentUser.id;
   const contentPreview = note.content
     .replace(/<[^>]*>/g, "")
     .slice(0, 50)
@@ -137,29 +134,6 @@ const NoteListItem = ({ note, isActive, onClick, onDelete }: NoteListItemProps) 
       <div className="flex items-center justify-between mt-2">
         <div className="flex items-center gap-1">
           <span className="text-xs text-muted-foreground">{updatedTime}</span>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1 ml-1 rounded-full text-xs">
-                  <div
-                    className="w-3 h-3 rounded-full flex items-center justify-center text-white text-[6px] font-medium"
-                    style={{ backgroundColor: currentUser.color }}
-                  >
-                    {isOwner ? "Y" : ""}
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <div className="text-xs">
-                  <p>Owner: {currentUser.name}</p>
-                  <p className="font-mono">ID: {currentUser.id}</p>
-                  {isOwner && <p className="font-bold">You are the owner</p>}
-                  {note.isHardcoded && <p className="font-bold text-amber-600">Sample Note</p>}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
 
           {note.isHardcoded && (
             <span className="ml-1 text-xs px-1 bg-amber-100 text-amber-800 rounded">Sample</span>
