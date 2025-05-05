@@ -55,6 +55,16 @@ pnpm build
 4. Share notes with other users by clicking the share button and copying the unique link
 5. Join shared notes by pasting the link in your browser or using the Join button in the top
 
+## Testing
+
+The application includes basic unit tests for key components. Tests are written using Vitest and React Testing Library.
+
+### Running Tests
+
+```bash
+pnpm test
+```
+
 ## Project Structure
 
 - `src/components/` - React components
@@ -63,3 +73,4 @@ pnpm build
 - `src/pages/` - Page components used in routing
 - `src/types/` - TypeScript type definitions
 - `src/assets/` - Static assets
+- `src/tests/` - Test files and utilities
