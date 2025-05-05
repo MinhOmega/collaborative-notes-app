@@ -4,17 +4,14 @@ import { render } from "../test-utils";
 import ShareNoteModal from "@/components/share-note-modal";
 import { mockNotes } from "../mocks/store-mock";
 
-let clipboardData = "";
 const mockClipboard = {
-  writeText: vi.fn((data) => {
-    clipboardData = data;
+  writeText: vi.fn(() => {
     return Promise.resolve();
   }),
   readText: vi.fn(),
 };
 
 beforeEach(() => {
-  clipboardData = "";
   Object.defineProperty(navigator, "clipboard", {
     value: mockClipboard,
     configurable: true,
